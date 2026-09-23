@@ -10,6 +10,7 @@ import { RaceManager } from './race.js';
 import { HUD } from './hud.js';
 import { Menu } from './menu.js';
 import { AudioEngine } from './audio.js';
+import { TouchControls, isTouchDevice } from './touch.js';
 
 // ---------------------------------------------------------------------------------------------
 // Error isolation: one failing subsystem must never freeze the loop. Log once per error type.
@@ -132,6 +133,7 @@ class FallbackCamera {
 // ---------------------------------------------------------------------------------------------
 const audio = new AudioEngine();
 const hud = new HUD(uiRoot);
+if (isTouchDevice()) hud.itemHint.textContent = '点“道具”键使用';
 const menu = new Menu(uiRoot, {
   onStart: (settings) => startRace(settings),
   onResume: () => resume(),
@@ -140,6 +142,7 @@ const menu = new Menu(uiRoot, {
   onScreen: (s) => { setState(s === 'select' ? 'select' : 'title'); },
 });
 let input = null;
+let touch = null;
 
 // ---------------------------------------------------------------------------------------------
 // Game state
@@ -158,6 +161,7 @@ function setState(s) {
   if (state === s) return;
   state = s;
   document.body.dataset.state = s;
+  if (touch) touch.setVisible(RACE_STATES.has(s) && !resultsShown);
   bus.emit('game:state', { state: s });
 }
 
@@ -323,7 +327,7 @@ function showIntroCard() {
   uiRoot.appendChild(introCard);
   const name = (world && world.track && world.track.name) || '大奖赛赛道';
   const d = { easy: '50cc', normal: '100cc', hard: '150cc' }[lastSettings.difficulty] || '';
-  introCard.innerHTML = `<div class="ic-sub">${d} · ${lastSettings.laps} 圈比赛</div><div class="ic-name">${name}</div><div class="ic-skip">回车 · 跳过</div>`;
+  introCard.innerHTML = `<div class="ic-sub">${d} · ${lastSettings.laps} 圈比赛</div><div class="ic-name">${name}</div><div class="ic-skip">${isTouchDevice() ? '点击屏幕 · 跳过' : '回车 · 跳过'}</div>`;
   introCard.classList.remove('show'); void introCard.offsetWidth; introCard.classList.add('show');
 }
 function hideIntroCard() { if (introCard) introCard.classList.remove('show'); }
@@ -367,6 +371,7 @@ bus.on('race:finish', (d) => {
 bus.on('race:end', (d) => {
   if (!world || world.mode !== 'race') return;
   resultsShown = true;
+  if (touch) touch.setVisible(false);
   const results = (d && d.results) || world.race.computeResults();
   if (state === 'paused') resume();
   setTimeout(() => {
@@ -468,7 +473,8 @@ function simulate(w, dt) {
   if (racing && player) {
     let raw = null;
     if (input) raw = safe('input.getInput', () => input.getInput());
-    if (input) safe('input.pause', () => input.consumePressed && input.consumePressed('pause'));
+    // touch button / gamepad START pause: the latch is drained here, so act on it
+    if (input && safe('input.pause', () => input.consumePressed && input.consumePressed('pause'))) pause();
     playerInput = raw || NEUTRAL;
     if (debug.autopilot && !w.playerAI && !player.controlsLocked) {
       const AIClass = mods.ai && mods.ai.AIDriver;
@@ -540,10 +546,14 @@ function frame() {
 // ---------------------------------------------------------------------------------------------
 async function boot() {
   document.body.dataset.state = 'boot';
+  document.body.dataset.touch = isTouchDevice() ? '1' : '0';
   menu.showLoading('加载中…');
   requestAnimationFrame(frame);
   await loadModules();
-  if (mods.input && mods.input.InputController) input = safe('input.ctor', () => new mods.input.InputController());
+  if (mods.input && mods.input.InputController) {
+    input = safe('input.ctor', () => new mods.input.InputController());
+    if (input && isTouchDevice()) touch = safe('touch.ctor', () => new TouchControls(uiRoot, input));
+  }
   if (mods.models && mods.models.createCharacterPortrait) {
     const fn = (c) => mods.models.createCharacterPortrait(c);
     safe('portraits', () => menu.setPortraitProvider(fn));

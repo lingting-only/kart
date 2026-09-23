@@ -491,3 +491,63 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .logo, .press-start, .btn.focus, .item-slot.filled { animation: none !important; }
 }
+
+/* ================================================================ touch controls (mobile) */
+.touch-ui { position: absolute; inset: 0; pointer-events: none; z-index: 6; font-family: var(--display); }
+.touch-ui .tbtn {
+  pointer-events: auto;
+  touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; color: #fff; cursor: pointer;
+  background: rgba(14, 18, 48, 0.5);
+  border: 3px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35), inset 0 2px 6px rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+  transition: transform 0.06s ease, background 0.06s ease, box-shadow 0.06s ease;
+}
+.touch-ui .tbtn.pressed { transform: scale(0.9); background: rgba(255, 210, 63, 0.55); box-shadow: 0 0 16px rgba(255, 210, 63, 0.55); }
+.t-glyph { font-size: 30px; line-height: 1; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4); }
+.t-label { font-size: 17px; letter-spacing: 2px; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.4); }
+
+/* left cluster: look-back above, steering arrows */
+.touch-steer {
+  position: absolute; left: calc(14px + env(safe-area-inset-left)); bottom: calc(14px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+}
+.touch-arrows { display: flex; gap: 12px; }
+.t-steer { width: 84px; height: 84px; }
+.t-mini { width: 58px; height: 58px; border-radius: 18px; }
+.t-mini .t-label { font-size: 13px; letter-spacing: 1px; }
+
+/* right cluster: item / drift top row, brake / gas bottom row (staircase into the corner) */
+.touch-actions {
+  position: absolute; right: calc(14px + env(safe-area-inset-right)); bottom: calc(14px + env(safe-area-inset-bottom));
+  display: grid; grid-template-columns: auto auto; gap: 12px; align-items: end; justify-items: end;
+}
+.touch-actions .tbtn:nth-child(1) { width: 64px; height: 64px; }   /* 道具 */
+.touch-actions .tbtn:nth-child(2) { width: 78px; height: 78px; }   /* 漂移 */
+.touch-actions .tbtn:nth-child(3) { width: 78px; height: 78px; background: rgba(255, 71, 87, 0.45); } /* 刹车 */
+.touch-actions .tbtn:nth-child(4) { width: 102px; height: 102px; } /* 油门 */
+.t-gas { background: rgba(255, 138, 31, 0.55); border-color: rgba(255, 232, 160, 0.85); }
+.t-gas.pressed { background: rgba(255, 170, 40, 0.85); }
+
+/* pause, top-right corner */
+.t-pause {
+  position: absolute; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right));
+  width: 46px; height: 46px; border-radius: 14px; font-size: 20px;
+}
+
+/* in touch mode: corners stay clear for the buttons —
+   minimap sits right of the lap counter, speedo + place go to the top-right */
+body[data-touch='1'] .hud-standings { display: none; }
+body[data-touch='1'] .hud-minimap {
+  left: 180px; top: 10px; bottom: auto;
+  width: clamp(96px, 15vmin, 140px); height: clamp(96px, 15vmin, 140px);
+}
+body[data-touch='1'] .hud-br {
+  top: 66px; right: 12px; bottom: auto;
+  align-items: flex-start; gap: 2px;
+}
+body[data-touch='1'] .hud-speedo { width: clamp(96px, 14vmin, 128px); height: clamp(96px, 14vmin, 128px); margin-bottom: 0; }
+body[data-touch='1'] .hud-place .num { font-size: clamp(56px, 12vmin, 96px); }
+body[data-touch='1'] .hud-place .suf { font-size: clamp(24px, 5vmin, 40px); }

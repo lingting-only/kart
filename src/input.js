@@ -56,6 +56,7 @@ export class InputController {
     this.gpSteer = 0;
     this.gpThrottle = 0;
     this.gpBrake = 0;
+    this.touchHeld = Object.create(null);   // action -> bool (on-screen touch buttons)
     this.gamepadConnected = false;
     this.lastDevice = 'keyboard';
     this.steer = 0;
@@ -156,9 +157,20 @@ export class InputController {
     for (const a in GP_ACTIONS) this.gpPrev[a] = held[a];
   }
 
+  /** On-screen touch button state. Edge-triggered actions (item/pause) latch like a key press. */
+  setTouch(action, down) {
+    const was = !!this.touchHeld[action];
+    this.touchHeld[action] = !!down;
+    if (down && !was) {
+      this.latch[action] = true;
+      if (action === 'item') this.itemEdge = true;
+      this.lastDevice = 'touch';
+    }
+  }
+
   isPressed(action) {
     this._pollGamepad();
-    return this._keyHeld(action) || !!this.gpHeld[action];
+    return this._keyHeld(action) || !!this.gpHeld[action] || !!this.touchHeld[action];
   }
 
   consumePressed(action) {
@@ -170,7 +182,7 @@ export class InputController {
   /** Raw throttle value (0..1) without consuming anything. */
   peekThrottle() {
     this._pollGamepad();
-    return Math.max(this._keyHeld('accelerate') ? 1 : 0, this.gpThrottle);
+    return Math.max(this._keyHeld('accelerate') ? 1 : 0, this.gpThrottle, this.touchHeld.accelerate ? 1 : 0);
   }
 
   getInput() {
@@ -179,7 +191,7 @@ export class InputController {
     const dt = Math.min(0.05, Math.max(0, (t - this._lastTime) / 1000));
     this._lastTime = t;
 
-    const kbTarget = (this._keyHeld('right') ? 1 : 0) - (this._keyHeld('left') ? 1 : 0);
+    const kbTarget = ((this._keyHeld('right') || this.touchHeld.right) ? 1 : 0) - ((this._keyHeld('left') || this.touchHeld.left) ? 1 : 0);
     if (this.gpSteer !== 0) {
       this.steer = this.gpSteer;
     } else {
@@ -196,13 +208,13 @@ export class InputController {
     }
 
     const st = this._state;
-    st.throttle = Math.max(this._keyHeld('accelerate') ? 1 : 0, this.gpThrottle);
-    st.brake = Math.max(this._keyHeld('brake') ? 1 : 0, this.gpBrake);
+    st.throttle = Math.max(this._keyHeld('accelerate') ? 1 : 0, this.gpThrottle, this.touchHeld.accelerate ? 1 : 0);
+    st.brake = Math.max(this._keyHeld('brake') ? 1 : 0, this.gpBrake, this.touchHeld.brake ? 1 : 0);
     st.steer = Math.max(-1, Math.min(1, this.steer));
-    st.drift = this._keyHeld('drift') || !!this.gpHeld.drift;
+    st.drift = this._keyHeld('drift') || !!this.gpHeld.drift || !!this.touchHeld.drift;
     st.item = this.itemEdge;
     this.itemEdge = false;
-    st.lookBack = this._keyHeld('lookBack') || !!this.gpHeld.lookBack;
+    st.lookBack = this._keyHeld('lookBack') || !!this.gpHeld.lookBack || !!this.touchHeld.lookBack;
     // Return a fresh copy so callers can store/mutate it safely.
     return { ...st };
   }
@@ -213,6 +225,7 @@ export class InputController {
     for (const k in this.latch) this.latch[k] = false;
     this.itemEdge = false;
     this.steer = 0;
+    for (const k in this.touchHeld) this.touchHeld[k] = false;
   }
 
   dispose() {
