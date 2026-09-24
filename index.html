@@ -2,7 +2,11 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="screen-orientation" content="landscape" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>极速卡丁车拉力赛</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@700;900&family=Noto+Sans+SC:wght@700;900&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet" />
@@ -18,6 +22,11 @@
   </script>
 </head>
 <body>
+  <div id="rotate-notice" class="rotate-notice">
+    <div class="rotate-icon">📱</div>
+    <div class="rotate-text">请旋转设备</div>
+    <div class="rotate-sub">横屏模式可获得最佳体验</div>
+  </div>
   <div id="game-root">
     <canvas id="game-canvas"></canvas>
     <div id="ui-root"></div>

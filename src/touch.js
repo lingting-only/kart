@@ -43,22 +43,22 @@ export class TouchControls {
       return b;
     };
 
-    // left cluster: look back above, steering arrows
+    // left cluster: lookBack & item, steering arrows
     const steer = document.createElement('div');
     steer.className = 'touch-steer';
     root.appendChild(steer);
     mk('lookBack', steer);
+    mk('item', steer);
     const arrows = document.createElement('div');
     arrows.className = 'touch-arrows';
     steer.appendChild(arrows);
     mk('left', arrows);
     mk('right', arrows);
 
-    // right cluster: item/drift on top row, brake/gas on bottom
+    // right cluster: drift on top row, brake/gas on bottom
     const actions = document.createElement('div');
     actions.className = 'touch-actions';
     root.appendChild(actions);
-    mk('item', actions);
     mk('drift', actions);
     mk('brake', actions);
     mk('accelerate', actions);

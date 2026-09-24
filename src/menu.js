@@ -95,6 +95,12 @@ export class Menu {
         <span class="kc">M</span> 静音
       </div>`;
     t.addEventListener('click', () => { if (this.screen === 'title') this._toSelect(); });
+    t.addEventListener('touchend', (e) => {
+      if (this.screen === 'title') {
+        e.preventDefault();
+        this._toSelect();
+      }
+    });
   }
 
   _buildSelect() {
@@ -121,6 +127,29 @@ export class Menu {
       </div>
       <div class="controls-help">${CONTROLS_HTML}</div>`;
     const grid = s.querySelector('.sel-grid');
+    // Grid swipe to change character
+    let gridTouchStartX = 0, gridTouchStartY = 0, gridTouchMoved = false;
+    grid.addEventListener('touchstart', (e) => {
+      gridTouchStartX = e.touches[0].clientX;
+      gridTouchStartY = e.touches[0].clientY;
+      gridTouchMoved = false;
+    }, { passive: true });
+    grid.addEventListener('touchmove', (e) => {
+      const dx = e.touches[0].clientX - gridTouchStartX;
+      const dy = e.touches[0].clientY - gridTouchStartY;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) gridTouchMoved = true;
+    }, { passive: true });
+    grid.addEventListener('touchend', (e) => {
+      if (this.screen !== 'select' || gridTouchMoved) return;
+      const dx = e.changedTouches[0].clientX - gridTouchStartX;
+      const dy = e.changedTouches[0].clientY - gridTouchStartY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+        // Swipe left/right to change character
+        this.zone = 'grid';
+        this._setChar(this.charIndex + (dx > 0 ? 1 : -1));
+      }
+    }, { passive: true });
+
     this.cards = CHARACTERS.map((ch, i) => {
       const card = el('div', 'card', grid);
       card.style.setProperty('--kc', hex(ch.color));
@@ -132,6 +161,19 @@ export class Menu {
       card.addEventListener('mouseenter', () => { if (this.screen === 'select') { this.zone = 'grid'; this._setChar(i); } });
       card.addEventListener('click', () => { if (this.screen === 'select') { this._setChar(i); this._confirmChar(); } });
       card.addEventListener('dblclick', () => { if (this.screen === 'select') this._start(); });
+      // Touch support
+      let cardTouchStartX = 0;
+      card.addEventListener('touchstart', (e) => {
+        cardTouchStartX = e.touches[0].clientX;
+      }, { passive: true });
+      card.addEventListener('touchend', (e) => {
+        if (this.screen !== 'select') return;
+        const dx = e.changedTouches[0].clientX - cardTouchStartX;
+        if (Math.abs(dx) < 15) {
+          this._setChar(i);
+          this._confirmChar();
+        }
+      }, { passive: true });
       return { card, img: card.querySelector('img'), initial: card.querySelector('.initial') };
     });
     this.pv = {
@@ -155,6 +197,39 @@ export class Menu {
       }
     });
     s.querySelector('.sel-back').addEventListener('click', () => this._toTitle());
+
+    // Touch swipe support for options
+    let touchStartX = 0, touchStartY = 0, touchMoved = false;
+    this.optEls.forEach((o, i) => {
+      o.addEventListener('touchstart', (e) => {
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchMoved = false;
+      }, { passive: true });
+      o.addEventListener('touchmove', (e) => {
+        const dx = e.touches[0].clientX - touchStartX;
+        const dy = e.touches[0].clientY - touchStartY;
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) touchMoved = true;
+      }, { passive: true });
+      o.addEventListener('touchend', (e) => {
+        if (this.screen !== 'select' || touchMoved) return;
+        const dx = e.changedTouches[0].clientX - touchStartX;
+        const dy = e.changedTouches[0].clientY - touchStartY;
+        if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
+          this.zone = 'opts'; this.optIndex = i;
+          this._changeOpt(dx > 0 ? 1 : -1);
+        } else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+          // Tap - trigger click
+          if (i < 2) {
+            this.zone = 'opts'; this.optIndex = i;
+            this._changeOpt(1);
+          } else {
+            this._start();
+          }
+        }
+      }, { passive: true });
+    });
+
     this._refreshPreview();
     this._refreshOpts();
   }
@@ -212,6 +287,11 @@ export class Menu {
     this.cards.forEach((c, j) => c.card.classList.toggle('selected', j === i));
     this._refreshPreview();
     this._refreshFocus();
+    // Scroll selected card into view on mobile
+    const selectedCard = this.cards[i]?.card;
+    if (selectedCard) {
+      selectedCard.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
   }
   _confirmChar() {
     bus.emit('ui:confirm');
