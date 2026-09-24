@@ -5,44 +5,117 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { bus } from './events.js';
 import * as TX from './track-textures.js';
 import { createEnvironment } from './environment.js';
+import { TRACKS } from './config.js';
 
-const TRACK_NAME = '棕榈湾赛道';
-const SCALE = 1.15;
 const N = 2000;                 // centerline samples
 const HALF_W = 12;              // road half width (roadWidth = 24)
 const GRID_CELL = 40;
-
-// Control points [x, y, z] (x/z scaled by SCALE). Race direction = list order. CP0 = start/finish line.
-const CP = [
-  [0, 0, -60],      // 0  start / finish (main straight, heading +Z)
-  [0, 0, 60],       // 1
-  [2, 0, 175],      // 2
-  [22, 1, 258],     // 3  big sweeping left
-  [80, 3, 302],     // 4
-  [160, 5, 296],    // 5
-  [230, 6, 252],    // 6  sweeping right
-  [262, 6, 182],    // 7
-  [238, 5, 118],    // 8  S-bend
-  [292, 4, 64],     // 9
-  [258, 4, 4],      // 10
-  [296, 6, -62],    // 11 climb to the bridge
-  [304, 10, -140],  // 12 bridge over the lagoon
-  [284, 10, -212],  // 13
-  [226, 6, -262],   // 14 downhill jump
-  [150, 3, -284],   // 15
-  [66, 1, -300],    // 16
-  [-20, 0, -318],   // 17 into the hairpin
-  [-96, 0, -322],   // 18
-  [-128, 0, -292],  // 19 hairpin apex
-  [-106, 0, -256],  // 20
-  [-50, 0, -236],   // 21
-  [-8, 0, -196],    // 22
-  [0, 0, -140],     // 23
-];
-
-// Lagoon crossed by the bridge (world coords). Shared with environment.
-const LAKE = { x: 405, z: -205, r: 125 };
 const WATER_LEVEL = -1;
+
+// Track definitions. Each entry is a full circuit built by createTrack.
+// `cp`   = control points [x, y, z] (x/z scaled by `scale`). Race direction = list order. CP0 = start/finish line.
+// `lake` = lagoon crossed by the bridge (world coords), shared with the environment.
+const TRACK_DEFS = {
+  palm_cove: {
+    scale: 1.15,
+    lake: { x: 405, z: -205, r: 125 },
+    cp: [
+      [0, 0, -60],      // 0  start / finish (main straight, heading +Z)
+      [0, 0, 60],       // 1
+      [2, 0, 175],      // 2
+      [22, 1, 258],     // 3  big sweeping left
+      [80, 3, 302],     // 4
+      [160, 5, 296],    // 5
+      [230, 6, 252],    // 6  sweeping right
+      [262, 6, 182],    // 7
+      [238, 5, 118],    // 8  S-bend
+      [292, 4, 64],     // 9
+      [258, 4, 4],      // 10
+      [296, 6, -62],    // 11 climb to the bridge
+      [304, 10, -140],  // 12 bridge over the lagoon
+      [284, 10, -212],  // 13
+      [226, 6, -262],   // 14 downhill jump
+      [150, 3, -284],   // 15
+      [66, 1, -300],    // 16
+      [-20, 0, -318],   // 17 into the hairpin
+      [-96, 0, -322],   // 18
+      [-128, 0, -292],  // 19 hairpin apex
+      [-106, 0, -256],  // 20
+      [-50, 0, -236],   // 21
+      [-8, 0, -196],    // 22
+      [0, 0, -140],     // 23
+    ],
+  },
+  coral_loop: {
+    scale: 1.15,
+    lake: { x: 305, z: -170, r: 110 },
+    cp: [
+      [0, 0, -60],        // 0  start / finish (main straight, heading +Z)
+      [0, 0, 60],         // 1
+      [0, 0, 175],        // 2
+      [70, 1, 235],       // 3  right kink
+      [10, 2, 290],       // 4  left kink (chicane)
+      [120, 3, 320],      // 5  right kink
+      [230, 5, 300],      // 6  sweeping right
+      [320, 6, 235],      // 7
+      [260, 5, 155],      // 8  left (S-bend)
+      [335, 4, 70],       // 9  right (S-bend)
+      [275, 4, 5],        // 10 left (S-bend)
+      [330, 6, -75],      // 11 climb to the bridge
+      [295, 10, -160],    // 12 bridge over the lagoon
+      [330, 10, -235],    // 13 bridge exit
+      [250, 7, -300],     // 14 downhill jump
+      [150, 4, -330],     // 15
+      [45, 2, -345],      // 16
+      [-45, 0, -345],     // 17
+      [-120, 0, -320],    // 18
+      [-170, 0, -270],    // 19 into the hairpin
+      [-200, 0, -200],    // 20 hairpin apex
+      [-110, 0, -230],    // 21 hairpin exit
+      [-15, 0, -190],     // 22
+      [0, 0, -140],       // 23
+    ],
+  },
+  ramp_canyon: {
+    scale: 1.15,
+    lake: { x: 320, z: -190, r: 105 },
+    cp: [
+      [0, 0, -60],        // 0  start / finish (main straight, heading +Z)
+      [0, 0, 60],         // 1
+      [0, 0, 175],        // 2
+      [60, 2, 235],       // 3  right kink (uphill)
+      [20, 4, 295],       // 4  left kink (uphill)
+      [110, 6, 320],      // 5  crest
+      [200, 7, 305],      // 6  downhill
+      [285, 4, 245],      // 7  downhill
+      [320, 3, 170],      // 8  valley
+      [275, 5, 105],      // 9  uphill
+      [335, 6, 35],       // 10 crest
+      [295, 3, -30],      // 11 downhill
+      [330, 8, -110],     // 12 uphill to the bridge
+      [305, 12, -185],    // 13 bridge over the lagoon
+      [320, 10, -255],    // 14 bridge exit
+      [240, 6, -310],     // 15 downhill
+      [150, 4, -335],     // 16
+      [60, 2, -345],      // 17
+      [-20, 0, -345],     // 18
+      [-90, 0, -320],     // 19
+      [-130, 0, -270],    // 20
+      [-110, 0, -230],    // 21 hairpin exit
+      [-15, 0, -190],     // 22
+      [0, 0, -140],       // 23
+    ],
+    itemRows: [1.2, 3.2, 5.4, 7.6, 9.4, 11.6, 14.6, 16.2, 18.2, 20.2, 21.6, 22.8],
+    ramps: [
+      { at: 4.6, hw: 10, h: 1.6 },
+      { at: 6.6, hw: 10, h: 1.8 },
+      { at: 9.8, hw: 10, h: 1.5 },
+      { at: 11.4, hw: 10, h: 1.7 },
+      { at: 15.6, hw: 10, h: 1.8 },
+      { at: 19.4, hw: 9, h: 1.5 },
+    ],
+  },
+};
 
 const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const wrapAngle = (a) => { while (a > Math.PI) a -= Math.PI * 2; while (a < -Math.PI) a += Math.PI * 2; return a; };
@@ -65,7 +138,14 @@ function smoothCircular(arr, radius, passes = 1) {
   return src;
 }
 
-export function createTrack(scene, renderer) {
+export function createTrack(scene, renderer, trackId) {
+  const id = (typeof trackId === 'number' ? TRACKS[trackId]?.id : trackId) || TRACKS[0].id;
+  const def = TRACK_DEFS[id] || TRACK_DEFS[TRACKS[0].id];
+  const TRACK_NAME = (TRACKS.find((t) => t.id === id) || TRACKS[0]).name;
+  const SCALE = def.scale;
+  const CP = def.cp;
+  const LAKE = def.lake;
+
   const root = new THREE.Group();
   root.name = 'track';
   scene.add(root);
@@ -256,12 +336,12 @@ export function createTrack(scene, renderer) {
   const RAMP_LEN = Math.max(4, Math.round(9 / ds));
   const ramps = [];
   const addRamp = (sIdx, hw = 10, h = 1.7) => ramps.push({ s0: ((sIdx % N) + N) % N, len: RAMP_LEN, hw, h });
-  addRamp(nearestToCP(14.35));                // downhill after the bridge
-  addRamp(nearestToCP(4.65), 9, 1.5);         // top of the big sweeper
+  const rampDefs = def.ramps || [{ at: 14.35 }, { at: 4.65, hw: 9, h: 1.5 }];
+  for (const r of rampDefs) addRamp(nearestToCP(r.at), r.hw, r.h);
 
   // Item box rows
   const itemBoxPositions = [];
-  const itemRowIdx = [1.25, 6.5, 9.2, 12.5, 16.4, 21.6].map(nearestToCP);
+  const itemRowIdx = (def.itemRows || [1.25, 6.5, 9.2, 12.5, 16.4, 21.6]).map(nearestToCP);
   for (const i of itemRowIdx) {
     for (const lat of [-8, -4, 0, 4, 8]) {
       itemBoxPositions.push(new THREE.Vector3(px[i] + rx[i] * lat, py[i] + 1.4, pz[i] + rz[i] * lat));

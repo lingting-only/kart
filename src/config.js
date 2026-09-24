@@ -2,6 +2,12 @@
 
 export const GAME_TITLE = '极速卡丁车 拉力赛';
 
+export const TRACKS = [
+  { id: 'palm_cove', name: '棕榈湾赛道' },
+  { id: 'coral_loop', name: '珊瑚环赛道' },
+  { id: 'ramp_canyon', name: '跳台峡谷赛道' },
+];
+
 export const RACE = {
   laps: 3,
   racers: 8,

@@ -150,7 +150,7 @@ let touch = null;
 let state = 'boot';
 let prevState = null;
 let world = null;
-let lastSettings = { characterIndex: 0, difficulty: 'normal', laps: RACE.laps };
+let lastSettings = { characterIndex: 0, difficulty: 'normal', laps: RACE.laps, trackIndex: 0 };
 let introTimer = 0;
 let resultsShown = false;
 let time = 0;
@@ -172,11 +172,11 @@ const RACE_STATES = new Set(['intro', 'countdown', 'racing', 'finished']);
 // ---------------------------------------------------------------------------------------------
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
-function buildWorld({ mode, characterIndex = 0, difficulty = 'normal', laps = RACE.laps }) {
+function buildWorld({ mode, characterIndex = 0, difficulty = 'normal', laps = RACE.laps, trackIndex = 0 }) {
   if (!mods.track || !mods.track.createTrack) throw new Error('track.js unavailable');
   if (!mods.kart || !mods.kart.Kart) throw new Error('kart.js unavailable');
   const w = { mode, difficulty, laps, karts: [], ais: [], playerAI: null, player: null, scene: new THREE.Scene() };
-  w.track = mods.track.createTrack(w.scene, renderer);
+  w.track = mods.track.createTrack(w.scene, renderer, trackIndex);
 
   // roster: attract mode = every character in order (kart index == character index)
   let chars;
