@@ -547,6 +547,11 @@ function frame() {
 async function boot() {
   document.body.dataset.state = 'boot';
   document.body.dataset.touch = isTouchDevice() ? '1' : '0';
+  // Prevent long-press context menu on mobile
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+  // Prevent pinch/zoom on mobile
+  document.addEventListener('touchstart', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
   menu.showLoading('加载中…');
   requestAnimationFrame(frame);
   await loadModules();

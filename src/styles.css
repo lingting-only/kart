@@ -688,7 +688,11 @@ button { font: inherit; color: inherit; }
 .touch-ui.hidden * { pointer-events: none !important; }
 .touch-ui .tbtn {
   pointer-events: auto;
-  touch-action: none; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%; color: #fff; cursor: pointer;
   background: rgba(14, 18, 48, 0.5);

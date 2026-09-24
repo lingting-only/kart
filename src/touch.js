@@ -40,6 +40,8 @@ export class TouchControls {
       b.addEventListener('pointerup', (e) => this._up(e, action));
       b.addEventListener('pointercancel', (e) => this._up(e, action));
       b.addEventListener('lostpointercapture', (e) => this._up(e, action));
+      // Prevent long-press context menu (copy/select/paste menu)
+      b.addEventListener('contextmenu', (e) => e.preventDefault());
       return b;
     };
 
