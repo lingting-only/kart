@@ -5,12 +5,16 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { bus } from './events.js';
-import { CHARACTERS, RACE, PHYSICS } from './config.js';
+import { CHARACTERS, RACE, PHYSICS, MULTIPLAYER } from './config.js';
 import { RaceManager } from './race.js';
 import { HUD } from './hud.js';
 import { Menu } from './menu.js';
 import { AudioEngine } from './audio.js';
 import { TouchControls, isTouchDevice } from './touch.js';
+import { roomManager } from './multiplayer/room-manager.js';
+import { syncManager } from './multiplayer/sync-manager.js';
+import { MultiplayerMenu } from './multiplayer/menu-ui.js';
+import { RemoteKart } from './multiplayer/remote-kart.js';
 
 // ---------------------------------------------------------------------------------------------
 // Error isolation: one failing subsystem must never freeze the loop. Log once per error type.
@@ -140,6 +144,10 @@ const menu = new Menu(uiRoot, {
   onRestart: () => { menu.hideAll(); startRace(lastSettings); },
   onQuit: () => goToTitle(),
   onScreen: (s) => { setState(s === 'select' ? 'select' : 'title'); },
+  onMultiplayer: () => openMultiplayerMenu(),
+});
+const mpMenu = new MultiplayerMenu(uiRoot, {
+  onBack: () => menu.showTitle(),
 });
 let input = null;
 let touch = null;
@@ -156,6 +164,8 @@ let resultsShown = false;
 let time = 0;
 const clock = new THREE.Clock();
 const NEUTRAL = Object.freeze({ throttle: 0, brake: 0, steer: 0, drift: false, item: false, lookBack: false });
+let mpActive = false;                 // 是否在多人比赛中
+let remoteKarts = new Map();          // playerId -> RemoteKart
 
 function setState(s) {
   if (state === s) return;
@@ -278,6 +288,8 @@ function buildAttract() {
 }
 
 function goToTitle() {
+  mpActive = false;
+  syncManager.stop();
   hud.hide(); hud.hideResults();
   audio.setPaused(false);
   audio.setGameplayActive(false);
@@ -320,6 +332,124 @@ function startRace(settings) {
     showIntroCard();
   }, 40);
 }
+
+// ---------------------------------------------------------------------------------------------
+// Multiplayer flow
+// ---------------------------------------------------------------------------------------------
+async function openMultiplayerMenu() {
+  try {
+    const { getCurrentUser } = await import('./multiplayer/supabase.js');
+    await getCurrentUser();
+  } catch (e) {
+    report('mp.auth', e);
+    hud.toast('无法连接多人服务');
+    return;
+  }
+  hud.hide();
+  menu.hideAll();
+  mpMenu.show();
+  setState('title');
+}
+
+function buildMultiplayerWorld(room) {
+  if (!mods.track || !mods.kart) throw new Error('modules unavailable');
+  const meId = roomManager.me?.id;
+  let players = roomManager.players || [];
+  console.log('[mp] meId =', meId, 'players =', players.map((p) => p.id), 'matched =', players.some((p) => p.id === meId));
+  // 防御：确保自己一定在列表中（防止玩家列表因时序/查询问题缺失自己导致 w.player 为 null）
+  if (meId && !players.some((p) => p.id === meId) && roomManager.me) {
+    players = [...players, roomManager.me];
+  }
+
+  const w = {
+    mode: 'multiplayer', difficulty: 'normal', laps: room.laps || 3,
+    karts: [], ais: [], player: null, scene: new THREE.Scene(),
+  };
+  w.track = mods.track.createTrack(w.scene, renderer, 0);
+  remoteKarts.clear();
+
+  const { Kart } = mods.kart;
+
+  // 1) 真实玩家：本地车 + 远程车
+  players.forEach((p, i) => {
+    const character = CHARACTERS.find((c) => c.id === p.character) || CHARACTERS[0];
+    const isMe = p.id === meId;
+    const model = makeKartModel(character);
+    const kart = new Kart({ scene: w.scene, track: w.track, character, isPlayer: isMe, index: i, model });
+    kart.isRemote = !isMe;                 // 远程车不跑本地物理
+    kart.userName = p.user_name;
+    w.karts.push(kart);
+    if (isMe) w.player = kart;
+    else remoteKarts.set(p.id, new RemoteKart(kart, p.id));
+  });
+
+  // 2) AI 补位到 RACE.racers 人（避开真实玩家已占用的角色，避免重复）
+  const fill = MULTIPLAYER.fillWithAI ? RACE.racers - players.length : 0;
+  const usedChars = new Set(players.map((p) => p.character));
+  const aiChars = shuffle(CHARACTERS.filter((c) => !usedChars.has(c.id)));
+  for (let i = 0; i < fill; i++) {
+    const character = aiChars[i % aiChars.length] || CHARACTERS[i % CHARACTERS.length];
+    const model = makeKartModel(character);
+    const kart = new Kart({ scene: w.scene, track: w.track, character, isPlayer: false, index: players.length + i, model });
+    w.karts.push(kart);
+    const AIClass = mods.ai?.AIDriver;
+    w.ais.push(AIClass ? safe('ai.ctor', () => new AIClass(kart, w.track, { difficulty: 'normal' })) : new FallbackAI(kart, w.track));
+  }
+
+  // 3) 发车格：本地玩家中段，其余打乱
+  const gridOrder = new Array(w.karts.length);
+  const rest = shuffle(w.karts.filter((k) => k !== w.player));
+  if (w.player) gridOrder[Math.min(4 + ((Math.random() * 2) | 0), w.karts.length - 1)] = w.player;
+  for (let i = 0; i < gridOrder.length; i++) if (!gridOrder[i]) gridOrder[i] = rest.shift();
+
+  w.race = new RaceManager({ track: w.track, karts: w.karts, player: w.player, laps: w.laps });
+  w.race.placeOnGrid(gridOrder);
+
+  if (mods.items?.ItemSystem) w.items = safe('items.ctor', () => new mods.items.ItemSystem({ scene: w.scene, track: w.track, karts: w.karts }));
+  if (mods.effects?.Effects) w.effects = safe('effects.ctor', () => new mods.effects.Effects(w.scene, camera));
+  w.chase = (mods.camera?.ChaseCamera && safe('camera.ctor', () => new mods.camera.ChaseCamera(camera))) || new FallbackCamera(camera);
+  w.ctx = { karts: w.karts, player: w.player || w.karts[0], itemSystem: w.items || null, time: 0 };
+  if (w.player) safe('camera.snap', () => w.chase.snap(w.player));
+
+  renderPass.scene = w.scene;
+  return w;
+}
+
+function startMultiplayerRace(room) {
+  mpMenu.hide();
+  hud.hide(); hud.hideResults();
+  menu.showLoading('等待其他玩家…');
+  audio.setPaused(false);
+  audio.stopMusic();
+  setState('loading');
+  setTimeout(() => {
+    disposeWorld();
+    try {
+      world = buildMultiplayerWorld(room);
+    } catch (e) {
+      report('buildMultiplayerWorld', e);
+      menu.showLoading('比赛加载失败');
+      setTimeout(goToTitle, 2500);
+      return;
+    }
+    mpActive = true;
+    resultsShown = false;
+    introTimer = 0;
+    seenErrors.clear();
+    hud.reset({ player: world.player, track: world.track, laps: world.laps });
+    hud.show();
+    menu.hideAll();
+    audio.setGameplayActive(true);
+    uiRoot.classList.remove('no-world');
+    setState('intro');
+    showIntroCard();
+    syncManager.start(room.id, roomManager.me.id);
+  }, 40);
+}
+
+bus.on('mp:startRace', ({ room }) => {
+  if (room && !mpActive) startMultiplayerRace(room);
+});
 
 let introCard = null;
 function showIntroCard() {
@@ -369,7 +499,7 @@ bus.on('race:finish', (d) => {
   world.playerAI = (AIClass && safe('ai.player', () => new AIClass(world.player, world.track, { difficulty: 'easy' }))) || new FallbackAI(world.player, world.track);
 });
 bus.on('race:end', (d) => {
-  if (!world || world.mode !== 'race') return;
+  if (!world || (world.mode !== 'race' && world.mode !== 'multiplayer')) return;
   resultsShown = true;
   if (touch) touch.setVisible(false);
   const results = (d && d.results) || world.race.computeResults();
@@ -380,7 +510,10 @@ bus.on('race:end', (d) => {
     hud.showResults(results, {
       laps: world.race.laps,
       onRestart: () => startRace(lastSettings),
-      onMenu: () => goToTitle(),
+      onMenu: () => {
+        if (world?.mode === 'multiplayer') { roomManager.leaveRoom(); }
+        goToTitle();
+      },
     });
   }, 200);
 });
@@ -466,7 +599,7 @@ const debug = { autopilot: false };
 function simulate(w, dt) {
   time += dt;
   w.ctx.time = time;
-  const racing = w.mode === 'race';
+  const racing = w.mode === 'race' || w.mode === 'multiplayer';
   const player = w.player;
 
   // player input (always drain the controller so edge-triggered presses don't queue up)
@@ -494,7 +627,21 @@ function simulate(w, dt) {
     try { ai.update(dt, w.ctx); } catch (e) { report('ai.update', e); }
   }
   for (let i = 0; i < w.karts.length; i++) {
-    try { w.karts[i].update(dt); } catch (e) { report('kart.update', e); }
+    const k = w.karts[i];
+    if (k.isRemote) continue;               // 远程车不跑本地物理
+    try { k.update(dt); } catch (e) { report('kart.update', e); }
+  }
+  // 远程车：从同步快照驱动
+  for (const rk of remoteKarts.values()) {
+    try {
+      const state = syncManager.getRemote(rk.playerId);
+      if (state) rk.applyState(state);
+      rk.update(dt);
+    } catch (e) { report('remoteKart.update', e); }
+  }
+  // 本地玩家：广播状态
+  if (w.mode === 'multiplayer' && w.player) {
+    safe('mp.broadcast', () => { syncManager.broadcast(w.player); });
   }
   if (mods.kart && mods.kart.resolveKartCollisions) safe('resolveKartCollisions', () => mods.kart.resolveKartCollisions(w.karts));
   if (w.items) safe('items.update', () => w.items.update(dt, time));
@@ -522,7 +669,7 @@ function frame() {
     const running = state !== 'paused' && state !== 'loading' && state !== 'boot';
     if (running) simulate(w, dt);
 
-    if (w.mode === 'race' && w.player) {
+    if ((w.mode === 'race' || w.mode === 'multiplayer') && w.player) {
       if (state !== 'paused') {
         const mode = state === 'intro' ? 'intro' : state === 'countdown' ? 'countdown' : state === 'finished' ? 'finish' : 'race';
         const lookBack = !!(state === 'racing' && playerInput && playerInput.lookBack);

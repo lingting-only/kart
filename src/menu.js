@@ -91,7 +91,10 @@ export class Menu {
         <div class="logo-line l2" data-text="${words.join(' ')}">${words.join(' ')}</div>
         <div class="logo-swoosh"></div>
       </div>
-      <div class="press-start">按 ENTER 或 点击屏幕 开始</div>
+      <div class="mode-buttons">
+        <button class="btn mode-btn" data-mode="single">🎮 单人模式</button>
+        <button class="btn mode-btn" data-mode="multi">🌐 多人模式</button>
+      </div>
       <div class="title-foot">
         <span>© 极速卡丁车拉力赛 · 原创程序生成游戏</span>
         <span class="kc">M</span> 静音
@@ -103,6 +106,13 @@ export class Menu {
         this._toSelect();
       }
     });
+    // 模式按钮：阻止冒泡，避免触发整屏点击进选人
+    const singleBtn = t.querySelector('[data-mode="single"]');
+    const multiBtn = t.querySelector('[data-mode="multi"]');
+    singleBtn.addEventListener('click', (e) => { e.stopPropagation(); this._toSelect(); });
+    singleBtn.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); this._toSelect(); });
+    multiBtn.addEventListener('click', (e) => { e.stopPropagation(); this._toMultiplayer(); });
+    multiBtn.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); this._toMultiplayer(); });
   }
 
   _buildSelect() {
@@ -282,6 +292,7 @@ export class Menu {
 
   _toSelect() { bus.emit('ui:confirm'); this.showSelect(); this.h.onScreen && this.h.onScreen('select'); }
   _toTitle() { bus.emit('ui:back'); this.showTitle(); this.h.onScreen && this.h.onScreen('title'); }
+  _toMultiplayer() { bus.emit('ui:confirm'); this.h.onMultiplayer && this.h.onMultiplayer(); }
 
   _setChar(i, silent) {
     i = (i + CHARACTERS.length) % CHARACTERS.length;

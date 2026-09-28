@@ -1,0 +1,82 @@
+/* 多人模式 UI 样式 */
+.mp-screen {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  align-items: center;
+  justify-content: center;
+}
+.mp-screen.active { display: flex; }
+
+.mp-panel {
+  background: rgba(10, 14, 30, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 28px 32px;
+  min-width: 360px;
+  max-width: 520px;
+  width: 90vw;
+  color: #fff;
+  text-align: center;
+  font-family: 'Nunito', 'Noto Sans SC', sans-serif;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+}
+.mp-panel h2 { margin: 0 0 16px; font-size: 26px; }
+.mp-panel input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  margin-bottom: 12px;
+  box-sizing: border-box;
+}
+.mp-panel .btn { display: block; width: 100%; margin: 8px 0; }
+.mp-room-list {
+  margin: 12px 0;
+  max-height: 200px;
+  overflow: auto;
+  text-align: left;
+}
+.mp-room {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 8px;
+}
+.mp-room .btn.small { width: auto; margin: 0; padding: 4px 12px; font-size: 13px; }
+.mp-room-meta { color: #9fd0ff; font-size: 13px; }
+.mp-empty { color: #888; padding: 12px; text-align: center; }
+.mp-players { margin: 8px 0 4px; }
+.mp-player {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  margin: 6px 0;
+}
+.mp-player.ready { background: rgba(76, 175, 80, 0.25); }
+.mp-player-status { color: #ffd54f; }
+.mp-player.ready .mp-player-status { color: #7dff8a; }
+.mp-room-id { color: #9fd0ff; font-size: 13px; margin-bottom: 10px; }
+
+/* 标题页模式选择按钮（单人 / 双人） */
+.mode-buttons {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 15vh;
+  display: flex;
+  gap: 26px;
+  justify-content: center;
+  align-items: center;
+}
+.mode-btn { min-width: 220px; }
+/* 禁用 hover 弹跳（上移/缩放），仅保留轻微亮度反馈 */
+.mode-btn:hover { transform: none !important; }

@@ -65,3 +65,11 @@ export const KEYS = {
   lookBack: ['KeyC'],
   pause: ['Escape', 'KeyP'],
 };
+
+export const MULTIPLAYER = {
+  maxPlayers: 4,        // 房间最大人数
+  syncRateHz: 15,       // 本地状态广播频率
+  fillWithAI: true,     // 不足 8 人时用 AI 补位
+  interpRate: 12,       // 远程车位置插值平滑度（越大越跟手）
+  headingRate: 14,      // 远程车朝向插值平滑度
+};
