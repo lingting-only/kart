@@ -501,19 +501,27 @@ button { font: inherit; color: inherit; }
   font-weight: 700;
 }
 
-/* Show only on touch devices in portrait (using aspect-ratio for better browser support) */
+/* 触屏竖屏：自动把游戏旋转成横屏渲染，而非用「请旋转设备」遮罩阻挡 */
 @media (pointer: coarse) and (max-aspect-ratio: 1/1) {
-  .rotate-notice { display: flex; }
-  #game-root { display: none; }
+  .rotate-notice { display: none; }
+  #game-root {
+    inset: auto;
+    top: 50%;
+    left: 50%;
+    /* 横屏逻辑尺寸：宽=竖屏高，高=竖屏宽（JS 侧会用像素值覆盖宽高，保证与渲染缓冲区 1:1） */
+    width: 100vh;
+    height: 100vw;
+    transform: translate(-50%, -50%) rotate(90deg);
+  }
 }
 @media (pointer: coarse) and (min-aspect-ratio: 1/1) {
   .rotate-notice { display: none; }
-  #game-root { display: block; }
+  #game-root { transform: none; }
 }
 /* Desktop: always show game */
 @media (pointer: fine) {
   .rotate-notice { display: none !important; }
-  #game-root { display: block !important; }
+  #game-root { transform: none !important; }
 }
 
 /* ================================================================ responsive */
@@ -607,8 +615,10 @@ button { font: inherit; color: inherit; }
     flex-direction: column;
     gap: 8px;
     width: auto;
-    min-width: 200px;
+    max-width: min(280px, 34vw);
+    min-width: 0;
     flex-shrink: 0;
+    overflow-y: auto;
   }
   .preview {
     flex: 1;
@@ -623,21 +633,26 @@ button { font: inherit; color: inherit; }
   }
   .pv-name { font-size: 20px; }
   .pv-kart { font-size: 10px; margin: 2px 0 4px; }
-  .pv-stats { display: none; }
+  .pv-stats { display: block; }
+  .pv-stats .st.big { font-size: 11px; margin: 2px 0; }
+  .pv-stats .bar { gap: 3px; }
+  .pv-stats .bar i { width: 16px; height: 8px; border-radius: 2px; }
   .opts { gap: 6px; }
   .opt {
+    grid-template-columns: auto 20px minmax(0, 1fr) 20px;
     padding: 8px 10px;
     border-radius: 10px;
     border-width: 2px;
     gap: 4px;
   }
   .opt-lbl { font-size: 12px; }
-  .opt-val { font-size: 16px; }
+  .opt-val { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
   .opt-arrow { font-size: 14px; padding: 4px 8px; }
   .race-btn {
     font-size: 20px;
-    padding: 10px 16px;
-    min-width: auto;
+    padding: 10px 12px;
+    min-width: 0;
+    width: 100%;
     margin-top: 0;
     border-radius: 12px;
     border-width: 2px;

@@ -35,6 +35,7 @@ function safe(tag, fn) {
 // ---------------------------------------------------------------------------------------------
 const canvas = document.getElementById('game-canvas');
 const uiRoot = document.getElementById('ui-root');
+const gameRoot = document.getElementById('game-root');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -60,7 +61,17 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 function onResize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const portrait = isTouchDevice() && window.innerHeight > window.innerWidth;
+  const w = portrait ? window.innerHeight : window.innerWidth;
+  const h = portrait ? window.innerWidth : window.innerHeight;
+  // 直接写入像素宽高，保证与 renderer.setSize 的缓冲区尺寸严格一致、无拉伸
+  if (portrait) {
+    gameRoot.style.width = window.innerHeight + 'px';
+    gameRoot.style.height = window.innerWidth + 'px';
+  } else {
+    gameRoot.style.width = '';
+    gameRoot.style.height = '';
+  }
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
@@ -68,6 +79,8 @@ function onResize() {
   bloom.setSize(w, h);
 }
 window.addEventListener('resize', onResize);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
+onResize(); // 页面首屏即竖屏打开时，立即应用横屏逻辑尺寸
 
 // ---------------------------------------------------------------------------------------------
 // Modules from other agents are loaded dynamically so a broken file degrades instead of killing the game.
