@@ -747,6 +747,7 @@ button { font: inherit; color: inherit; }
 .touch-actions .tbtn:nth-child(3) { width: 102px; height: 102px; grid-column: 2; grid-row: 2; } /* 油门 */
 .t-gas { background: rgba(255, 138, 31, 0.55); border-color: rgba(255, 232, 160, 0.85); }
 .t-gas.pressed { background: rgba(255, 170, 40, 0.85); }
+.t-gas.locked { background: rgba(255, 170, 40, 0.9); box-shadow: 0 0 18px rgba(255, 210, 63, 0.7); }
 
 /* pause, top-right corner */
 .t-pause {

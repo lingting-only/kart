@@ -24,6 +24,7 @@ export class TouchControls {
     this.input = input;
     this.active = false;
     this._pointers = new Map(); // pointerId -> action
+    this._accelLocked = false;  // 油门是否处于锁定（持续加速）状态
 
     const root = document.createElement('div');
     root.className = 'touch-ui hidden';
@@ -74,13 +75,32 @@ export class TouchControls {
   _down(e, el, action) {
     e.preventDefault();
     e.stopPropagation();
+
+    // 油门：点击锁定/解锁（toggle），松开不影响，直到再次点击或点刹车取消
+    if (action === 'accelerate') {
+      this._accelLocked = !this._accelLocked;
+      this.input.setTouch('accelerate', this._accelLocked);
+      el.classList.toggle('pressed', this._accelLocked);
+      el.classList.toggle('locked', this._accelLocked);
+      return;
+    }
+
     try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     this._pointers.set(e.pointerId, action);
     el.classList.add('pressed');
     this.input.setTouch(action, true);
+
+    // 刹车：取消油门锁定
+    if (action === 'brake' && this._accelLocked) {
+      this._accelLocked = false;
+      this.input.setTouch('accelerate', false);
+      const gas = this.root.querySelector('[data-action="accelerate"]');
+      if (gas) gas.classList.remove('pressed', 'locked');
+    }
   }
 
   _up(e, action) {
+    if (action === 'accelerate') return;  // 油门是 toggle，松开不取消
     if (!this._pointers.has(e.pointerId)) return;
     this._pointers.delete(e.pointerId);
     const el = e.currentTarget;
@@ -96,8 +116,9 @@ export class TouchControls {
     this.root.classList.toggle('hidden', !v);
     if (!v) {
       this._pointers.clear();
+      this._accelLocked = false;
       for (const a of Object.keys(BUTTONS)) this.input.setTouch(a, false);
-      for (const b of this.root.querySelectorAll('.tbtn.pressed')) b.classList.remove('pressed');
+      for (const b of this.root.querySelectorAll('.tbtn.pressed, .tbtn.locked')) b.classList.remove('pressed', 'locked');
     }
   }
 
