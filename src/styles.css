@@ -516,48 +516,61 @@ button { font: inherit; color: inherit; }
   }
   /* ====== 竖屏旋转后的结算页面优化 ====== */
   .res-panel {
-    width: min(720px, 92vh);
-    padding: 14px 16px 16px;
-    border-radius: 20px;
-    gap: 6px;
+    width: min(580px, 90vh);
+    max-height: 85vw;
+    padding: 10px 12px 12px;
+    border-radius: 16px;
+    gap: 4px;
   }
-  .res-title { font-size: clamp(28px, 5.5vh, 48px); }
-  .res-sub { font-size: 11px; margin-bottom: 2px; }
-  .res-table { gap: 4px; }
-  /* 紧凑行布局：排名 | 头像+名字 | 时间 */
+  .res-title { font-size: clamp(24px, 4.5vh, 40px); margin-bottom: 2px; }
+  .res-sub { font-size: 10px; margin-bottom: 2px; }
+  .res-table { gap: 3px; }
+  /* 超紧凑行布局：排名 | 头像+名字 | 时间 */
   .res-row {
-    grid-template-columns: 52px 1fr auto;
-    padding: 6px 10px;
-    gap: 8px;
-    border-radius: 12px;
+    grid-template-columns: 42px 1fr auto;
+    padding: 5px 8px;
+    gap: 6px;
+    border-radius: 10px;
+    min-height: 0;
   }
   .res-place {
-    font-size: clamp(22px, 4vh, 32px);
-    -webkit-text-stroke: 3px var(--ink);
+    font-size: clamp(18px, 3.2vh, 26px);
+    -webkit-text-stroke: 2px var(--ink);
+    line-height: 1;
   }
-  /* 头像和名字合并成一列，垂直排列 */
+  .res-place small { font-size: 0.5em; }
+  /* 头像+名字垂直排列在一列 */
   .res-portrait {
-    width: clamp(36px, 5.5vh, 46px);
-    height: clamp(36px, 5.5vh, 46px);
-    border-radius: 10px;
+    width: clamp(30px, 4.2vh, 38px);
+    height: clamp(30px, 4.2vh, 38px);
+    border-radius: 8px;
     border-width: 2px;
-    font-size: clamp(18px, 3vh, 24px);
+    font-size: clamp(14px, 2.4vh, 20px);
     flex-shrink: 0;
   }
   .res-name {
-    font-size: clamp(15px, 2.8vh, 21px);
+    font-size: clamp(13px, 2.2vh, 18px);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
   }
-  .res-name em { font-size: 9px; padding: 1px 5px; border-radius: 4px; }
-  .res-best { display: none; }  /* 手机上隐藏最佳时间，节省空间 */
+  .res-name em { font-size: 8px; padding: 1px 4px; border-radius: 3px; margin-left: 4px; }
+  .res-best { display: none; }  /* 手机上隐藏最佳时间 */
   .res-time {
-    font-size: clamp(16px, 3vh, 21px);
+    font-size: clamp(14px, 2.4vh, 18px);
     flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
   }
-  .res-buttons { gap: 12px; margin-top: 8px; }
-  .res-buttons .btn { min-width: 120px; font-size: clamp(16px, 3vh, 20px); padding: 10px 18px; }
+  .res-buttons { gap: 10px; margin-top: 6px; flex-wrap: nowrap; }
+  .res-buttons .btn { 
+    min-width: 100px; 
+    font-size: clamp(14px, 2.4vh, 18px); 
+    padding: 8px 14px; 
+    border-radius: 12px;
+  }
+  /* 修复本人高亮行：减小 text-stroke 避免排名文字变形 */
+  .res-row.me .res-place { -webkit-text-stroke: 2px var(--ink); }
 }
 @media (pointer: coarse) and (min-aspect-ratio: 1/1) {
   .rotate-notice { display: none; }
