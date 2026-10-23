@@ -78,11 +78,28 @@ export class RaceManager {
     try { return this.track.getSurfaceInfo(k.position).t; } catch (e) { return 0; }
   }
 
-  startCountdown() {
+  startCountdown(elapsed = 0) {
     this.phase = 'countdown';
-    this.countdownTime = 0;
+    this.countdownTime = Math.max(0, elapsed);
     this._cdIndex = 0;
+    const marks = [0.5, 1.5, 2.5, 3.5];
+    while (this._cdIndex < marks.length && this.countdownTime >= marks[this._cdIndex]) this._cdIndex++;
+    if (this._cdIndex >= marks.length) {
+      // 倒计时已全部过去（网络延迟较大），直接发车
+      this.countdownValue = 'GO';
+      this._go();
+      return;
+    }
+    const t = this.countdownTime;
+    this.countdownValue = t < 0.5 ? null : t < 1.5 ? 3 : t < 2.5 ? 2 : 1;
     for (const k of this.karts) k.controlsLocked = true;
+  }
+
+  _go() {
+    this.phase = 'racing';
+    this.raceTime = 0;
+    for (const k of this.karts) { k.controlsLocked = false; k._lapStart = 0; }
+    this._emit('race:go', {});
   }
 
   /** Attract mode: skip countdown entirely. */
@@ -101,10 +118,7 @@ export class RaceManager {
         if (i < 3) { this.countdownValue = 3 - i; this._emit('race:countdown', { n: 3 - i }); }
         else {
           this.countdownValue = 'GO';
-          this.phase = 'racing';
-          this.raceTime = 0;
-          for (const k of this.karts) { k.controlsLocked = false; k._lapStart = 0; }
-          this._emit('race:go', {});
+          this._go();
         }
       }
       this._updateProgress();
@@ -115,6 +129,7 @@ export class RaceManager {
 
     this.raceTime += dt;
     for (const k of this.karts) this._updateLaps(k);
+    this._updateRemoteFinish();
     this._updateProgress();
     this._sortPlaces();
     if (this.player && !this.player.finished && this.phase === 'racing') this._updateWrongWay(dt);
@@ -127,6 +142,7 @@ export class RaceManager {
   }
 
   _updateLaps(k) {
+    if (k.isRemote) return;  // 远程玩家由网络同步驱动，不本地计算圈数
     const t = this._tOf(k);
     const prev = k._prevT == null ? t : k._prevT;
     k._prevT = t;
@@ -178,10 +194,25 @@ export class RaceManager {
   _updateProgress() {
     for (const k of this.karts) {
       if (k.finished) { k.raceProgress = this.laps + 1 + (100 - (k._finishOrder ?? 0)) * 1e-4; continue; }
+      if (k.isRemote) {
+        // 远程玩家：用同步的 lap 和 trackT 计算进度
+        k.raceProgress = (Math.max(1, k.lap || 1) - 1) + (k.trackT || 0);
+        continue;
+      }
       const t = this._tOf(k);
       // behind the line on the grid -> t close to 1, lapCount 0 -> progress just below 1
       k.raceProgress = k._lapCount + t;
       if (k._startProgress == null && this.phase === 'racing') k._startProgress = k.raceProgress;
+    }
+  }
+
+  /** 处理远程玩家的完赛（finished 状态由网络同步驱动） */
+  _updateRemoteFinish() {
+    for (const k of this.karts) {
+      if (!k.isRemote || !k.finished || k.finishTime != null) continue;
+      k.finishTime = this.raceTime;
+      this._finishCount++;
+      k._finishOrder = this._finishCount;
     }
   }
 
@@ -254,7 +285,7 @@ export class RaceManager {
       place: i + 1,
       kart: r.kart,
       character: r.kart.character,
-      name: r.kart.character ? r.kart.character.name : `车手 ${i + 1}`,
+      name: r.kart.userName || (r.kart.character ? r.kart.character.name : `车手 ${i + 1}`),
       isPlayer: !!r.kart.isPlayer,
       time: r.time,
       estimated: r.estimated,

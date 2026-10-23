@@ -173,10 +173,14 @@ export class RoomManager {
     await supabase.from('players').update({ character }).eq('id', this.me.id);
   }
 
-  /** 房主开始比赛：房间状态切到 countdown */
+  /** 房主开始比赛：房间状态切到 countdown，并设置统一的开始时间 */
   async startRace() {
     if (!this.me?.is_host || !this.room) return;
-    await supabase.from('rooms').update({ state: 'countdown' }).eq('id', this.room.id);
+    // start_at = 统一的 GO 时刻（6 秒后，给所有客户端同步的时间）
+    await supabase
+      .from('rooms')
+      .update({ state: 'countdown', start_at: new Date(Date.now() + 6000).toISOString() })
+      .eq('id', this.room.id);
   }
 
   async leaveRoom() {

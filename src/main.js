@@ -179,6 +179,7 @@ const clock = new THREE.Clock();
 const NEUTRAL = Object.freeze({ throttle: 0, brake: 0, steer: 0, drift: false, item: false, lookBack: false });
 let mpActive = false;                 // 是否在多人比赛中
 let remoteKarts = new Map();          // playerId -> RemoteKart
+let mpGoAt = 0;                       // 多人比赛统一的 GO 时刻（毫秒时间戳）
 
 function setState(s) {
   if (state === s) return;
@@ -431,6 +432,8 @@ function buildMultiplayerWorld(room) {
 function startMultiplayerRace(room) {
   mpMenu.hide();
   hud.hide(); hud.hideResults();
+  // 读取统一的开始时间（GO 时刻），若无则用 8 秒后兜底
+  mpGoAt = room.start_at ? new Date(room.start_at).getTime() : (Date.now() + 8000);
   menu.showLoading('等待其他玩家…');
   audio.setPaused(false);
   audio.stopMusic();
@@ -478,7 +481,12 @@ function hideIntroCard() { if (introCard) introCard.classList.remove('show'); }
 function beginCountdown() {
   if (state !== 'intro' || !world) return;
   hideIntroCard();
-  world.race.startCountdown();
+  let elapsed = 0;
+  if (world.mode === 'multiplayer' && mpGoAt) {
+    // 多人：根据统一 GO 时刻计算倒计时已过去的时间，从而对齐发车
+    elapsed = Math.max(0, (Date.now() - (mpGoAt - 3500)) / 1000);
+  }
+  world.race.startCountdown(elapsed);
   setState('countdown');
   safe('camera.snap', () => world.chase.snap(world.player));
 }
@@ -666,8 +674,13 @@ function simulate(w, dt) {
   if (focus && w.track.setShadowFocus) safe('track.setShadowFocus', () => w.track.setShadowFocus(focus.position));
 
   if (racing && state === 'intro') {
-    introTimer += dt;
-    if (introTimer > 4.0) beginCountdown();
+    if (w.mode === 'multiplayer' && mpGoAt) {
+      // 多人：到统一的倒计时开始时刻自动 beginCountdown
+      if (Date.now() >= mpGoAt - 3500) beginCountdown();
+    } else {
+      introTimer += dt;
+      if (introTimer > 4.0) beginCountdown();
+    }
   }
 }
 
