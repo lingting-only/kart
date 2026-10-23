@@ -82,10 +82,11 @@ export class TouchControls {
     const apply = (clientX) => {
       const r = track.getBoundingClientRect();
       const half = r.width / 2;
+      // 手指右滑 → v > 0 → steer > 0 → yawRate > 0 → heading -= → 车右转（符合直觉）
       let v = half > 0 ? (clientX - (r.left + half)) / half : 0;
       v = Math.max(-1, Math.min(1, v));
       if (Math.abs(v) < 0.08) v = 0;   // 死区，避免抖动
-      const travel = Math.max(0, half - thumb.offsetWidth / 2);
+      const travel = Math.max(0, half - 23);
       thumb.style.transform = `translateX(${v * travel}px)`;
       this.input.setSteer(v);
     };
