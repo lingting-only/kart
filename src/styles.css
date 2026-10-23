@@ -376,6 +376,7 @@ button { font: inherit; color: inherit; }
 .hud-countdown.show { animation: cdPop 0.95s cubic-bezier(.2,1.6,.4,1) forwards; }
 .hud-countdown.n3 { color: #ff4757; } .hud-countdown.n2 { color: #ffa21f; } .hud-countdown.n1 { color: #ffe23f; }
 .hud-countdown.go { color: #4dff7c; animation: goPop 1.1s cubic-bezier(.2,1.6,.4,1) forwards; }
+.hud-countdown.end { color: #ff4757; }
 @keyframes cdPop { 0% { opacity: 0; transform: scale(2.6); } 25% { opacity: 1; transform: scale(1); } 75% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.6); } }
 @keyframes goPop { 0% { opacity: 0; transform: scale(0.3) rotate(-10deg); } 25% { opacity: 1; transform: scale(1.15) rotate(3deg); } 70% { opacity: 1; transform: scale(1.1); } 100% { opacity: 0; transform: scale(2.2); } }
 
@@ -513,6 +514,8 @@ button { font: inherit; color: inherit; }
     height: 100vw;
     transform: translate(-50%, -50%) rotate(90deg);
   }
+  /* 旋转成横屏后，可用宽度是 vh（手机高度）而非 vw，修正结算面板按 vw 计算宽度导致过窄 */
+  .res-panel { width: min(780px, 94vh); }
 }
 @media (pointer: coarse) and (min-aspect-ratio: 1/1) {
   .rotate-notice { display: none; }

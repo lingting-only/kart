@@ -468,6 +468,14 @@ export class HUD {
       restartAnim(this.placeEl, 'bump');
     }
 
+    // final countdown：前三名完成后 10 秒结束倒计时
+    const endTimer = (race && race.endTimer >= 0 && race.phase !== 'done') ? Math.ceil(race.endTimer) : -1;
+    if (L.endTimer !== endTimer) {
+      L.endTimer = endTimer;
+      if (endTimer >= 0) this.showCount(String(endTimer), 'end');
+      else this.countEl.classList.remove('show');
+    }
+
     // item slot
     let spinning = false, display = null;
     if (itemSystem && typeof itemSystem.rouletteState === 'function') {

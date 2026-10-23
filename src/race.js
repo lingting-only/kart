@@ -185,10 +185,23 @@ export class RaceManager {
     this._emit('race:finish', { kart: k, place, time: k.finishTime });
     if (k === this.player) {
       this.playerFinished = true;
-      this.endTimer = 3.8;
       this._setWrongWay(false);
     }
-    if (this._finishCount >= this.karts.length && this.endTimer < 0 && !this.ended && this.player) this.endTimer = 1;
+    this._checkEnd();
+  }
+
+  /** 结束条件：前三名完成后倒计时 10 秒自动结束；所有人都完成则立即结束。 */
+  _checkEnd() {
+    if (this.ended) return;
+    // 前三名完成后，倒计时 10 秒自动结束本局
+    if (this._finishCount >= 3 && this.endTimer < 0) {
+      this.endTimer = 10;
+      return;
+    }
+    // 兜底：所有赛车都完成，立即结束
+    if (this._finishCount >= this.karts.length && this.endTimer < 0 && this.player) {
+      this.endTimer = 1;
+    }
   }
 
   _updateProgress() {
@@ -208,12 +221,15 @@ export class RaceManager {
 
   /** 处理远程玩家的完赛（finished 状态由网络同步驱动） */
   _updateRemoteFinish() {
+    let changed = false;
     for (const k of this.karts) {
       if (!k.isRemote || !k.finished || k.finishTime != null) continue;
       k.finishTime = this.raceTime;
       this._finishCount++;
       k._finishOrder = this._finishCount;
+      changed = true;
     }
+    if (changed) this._checkEnd();
   }
 
   _sortPlaces() {
