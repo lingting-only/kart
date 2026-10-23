@@ -57,6 +57,7 @@ export class InputController {
     this.gpThrottle = 0;
     this.gpBrake = 0;
     this.touchHeld = Object.create(null);   // action -> bool (on-screen touch buttons)
+    this.touchSteer = 0;                    // 触屏滑动转向（连续值 -1..1）
     this.gamepadConnected = false;
     this.lastDevice = 'keyboard';
     this.steer = 0;
@@ -168,6 +169,12 @@ export class InputController {
     }
   }
 
+  /** 触屏滑动转向：连续值 -1..1（0 = 回中） */
+  setSteer(value) {
+    this.touchSteer = Math.max(-1, Math.min(1, Number.isFinite(value) ? value : 0));
+    if (this.touchSteer !== 0) this.lastDevice = 'touch';
+  }
+
   isPressed(action) {
     this._pollGamepad();
     return this._keyHeld(action) || !!this.gpHeld[action] || !!this.touchHeld[action];
@@ -194,6 +201,9 @@ export class InputController {
     const kbTarget = ((this._keyHeld('right') || this.touchHeld.right) ? 1 : 0) - ((this._keyHeld('left') || this.touchHeld.left) ? 1 : 0);
     if (this.gpSteer !== 0) {
       this.steer = this.gpSteer;
+    } else if (this.touchSteer !== 0) {
+      // 触屏滑动：直接跟随（即时响应）
+      this.steer = this.touchSteer;
     } else {
       let s = this.steer;
       if (kbTarget === 0) {
@@ -225,6 +235,7 @@ export class InputController {
     for (const k in this.latch) this.latch[k] = false;
     this.itemEdge = false;
     this.steer = 0;
+    this.touchSteer = 0;
     for (const k in this.touchHeld) this.touchHeld[k] = false;
   }
 

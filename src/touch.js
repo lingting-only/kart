@@ -46,17 +46,13 @@ export class TouchControls {
       return b;
     };
 
-    // left cluster: lookBack & item, steering arrows
+    // left cluster: lookBack & item, sliding steering pad
     const steer = document.createElement('div');
     steer.className = 'touch-steer';
     root.appendChild(steer);
     mk('lookBack', steer);
     mk('item', steer);
-    const arrows = document.createElement('div');
-    arrows.className = 'touch-arrows';
-    steer.appendChild(arrows);
-    mk('left', arrows);
-    mk('right', arrows);
+    this._mkSteerPad(steer);
 
     // right cluster: drift on top row, brake/gas on bottom
     const actions = document.createElement('div');
@@ -70,6 +66,57 @@ export class TouchControls {
     mk('pause', root);
 
     uiRoot.appendChild(root);
+  }
+
+  /** 滑动转向：手指按住左右滑动控制方向，不松开即可连续调整 */
+  _mkSteerPad(parent) {
+    const pad = document.createElement('div');
+    pad.className = 'touch-steer-pad';
+    pad.innerHTML = '<div class="steer-track"><div class="steer-thumb"></div><span class="steer-hint">◀ 方向 ▶</span></div>';
+    parent.appendChild(pad);
+
+    const track = pad.querySelector('.steer-track');
+    const thumb = pad.querySelector('.steer-thumb');
+    let activePointer = null;
+
+    const apply = (clientX) => {
+      const r = track.getBoundingClientRect();
+      const half = r.width / 2;
+      let v = half > 0 ? (clientX - (r.left + half)) / half : 0;
+      v = Math.max(-1, Math.min(1, v));
+      if (Math.abs(v) < 0.08) v = 0;   // 死区，避免抖动
+      const travel = Math.max(0, half - thumb.offsetWidth / 2);
+      thumb.style.transform = `translateX(${v * travel}px)`;
+      this.input.setSteer(v);
+    };
+
+    const onDown = (e) => {
+      e.preventDefault();
+      try { pad.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+      activePointer = e.pointerId;
+      pad.classList.add('active');
+      apply(e.clientX);
+    };
+    const onMove = (e) => {
+      if (activePointer !== e.pointerId) return;
+      apply(e.clientX);
+    };
+    const onUp = (e) => {
+      if (activePointer !== e.pointerId) return;
+      activePointer = null;
+      pad.classList.remove('active');
+      thumb.style.transform = 'translateX(0)';
+      this.input.setSteer(0);
+    };
+
+    pad.addEventListener('pointerdown', onDown);
+    pad.addEventListener('pointermove', onMove);
+    pad.addEventListener('pointerup', onUp);
+    pad.addEventListener('pointercancel', onUp);
+    pad.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    this._steerPad = pad;
+    return pad;
   }
 
   _down(e, el, action) {
@@ -117,8 +164,11 @@ export class TouchControls {
     if (!v) {
       this._pointers.clear();
       this._accelLocked = false;
+      this.input.setSteer(0);
       for (const a of Object.keys(BUTTONS)) this.input.setTouch(a, false);
       for (const b of this.root.querySelectorAll('.tbtn.pressed, .tbtn.locked')) b.classList.remove('pressed', 'locked');
+      const thumb = this.root.querySelector('.steer-thumb');
+      if (thumb) thumb.style.transform = 'translateX(0)';
     }
   }
 
