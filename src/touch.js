@@ -77,7 +77,7 @@ export class TouchControls {
 
     const track = pad.querySelector('.steer-track');
     const thumb = pad.querySelector('.steer-thumb');
-    let activePointer = null;
+    let active = false;
 
     const apply = (clientX) => {
       const r = track.getBoundingClientRect();
@@ -90,29 +90,46 @@ export class TouchControls {
       this.input.setSteer(v);
     };
 
-    const onDown = (e) => {
-      e.preventDefault();
-      try { pad.setPointerCapture(e.pointerId); } catch { /* ignore */ }
-      activePointer = e.pointerId;
+    const onStart = (clientX) => {
+      active = true;
       pad.classList.add('active');
-      apply(e.clientX);
+      apply(clientX);
     };
-    const onMove = (e) => {
-      if (activePointer !== e.pointerId) return;
-      apply(e.clientX);
+    const onMove = (clientX) => {
+      if (!active) return;
+      apply(clientX);
     };
-    const onUp = (e) => {
-      if (activePointer !== e.pointerId) return;
-      activePointer = null;
+    const onEnd = () => {
+      if (!active) return;
+      active = false;
       pad.classList.remove('active');
       thumb.style.transform = 'translateX(0)';
       this.input.setSteer(0);
     };
 
-    pad.addEventListener('pointerdown', onDown);
-    pad.addEventListener('pointermove', onMove);
-    pad.addEventListener('pointerup', onUp);
-    pad.addEventListener('pointercancel', onUp);
+    // 触屏（用 touch 事件，避免 pointermove 被默认滚动手势打断）
+    pad.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.touches && e.touches[0];
+      if (t) onStart(t.clientX);
+    }, { passive: false });
+    pad.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      const t = e.touches && e.touches[0];
+      if (t) onMove(t.clientX);
+    }, { passive: false });
+    pad.addEventListener('touchend', (e) => { e.preventDefault(); onEnd(); });
+    pad.addEventListener('touchcancel', onEnd);
+
+    // 桌面调试（鼠标）
+    pad.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      onStart(e.clientX);
+      const mm = (ev) => onMove(ev.clientX);
+      const mu = () => { onEnd(); window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); };
+      window.addEventListener('mousemove', mm);
+      window.addEventListener('mouseup', mu);
+    });
     pad.addEventListener('contextmenu', (e) => e.preventDefault());
 
     this._steerPad = pad;
