@@ -514,8 +514,50 @@ button { font: inherit; color: inherit; }
     height: 100vw;
     transform: translate(-50%, -50%) rotate(90deg);
   }
-  /* 旋转成横屏后，可用宽度是 vh（手机高度）而非 vw，修正结算面板按 vw 计算宽度导致过窄 */
-  .res-panel { width: min(780px, 94vh); }
+  /* ====== 竖屏旋转后的结算页面优化 ====== */
+  .res-panel {
+    width: min(720px, 92vh);
+    padding: 14px 16px 16px;
+    border-radius: 20px;
+    gap: 6px;
+  }
+  .res-title { font-size: clamp(28px, 5.5vh, 48px); }
+  .res-sub { font-size: 11px; margin-bottom: 2px; }
+  .res-table { gap: 4px; }
+  /* 紧凑行布局：排名 | 头像+名字 | 时间 */
+  .res-row {
+    grid-template-columns: 52px 1fr auto;
+    padding: 6px 10px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+  .res-place {
+    font-size: clamp(22px, 4vh, 32px);
+    -webkit-text-stroke: 3px var(--ink);
+  }
+  /* 头像和名字合并成一列，垂直排列 */
+  .res-portrait {
+    width: clamp(36px, 5.5vh, 46px);
+    height: clamp(36px, 5.5vh, 46px);
+    border-radius: 10px;
+    border-width: 2px;
+    font-size: clamp(18px, 3vh, 24px);
+    flex-shrink: 0;
+  }
+  .res-name {
+    font-size: clamp(15px, 2.8vh, 21px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .res-name em { font-size: 9px; padding: 1px 5px; border-radius: 4px; }
+  .res-best { display: none; }  /* 手机上隐藏最佳时间，节省空间 */
+  .res-time {
+    font-size: clamp(16px, 3vh, 21px);
+    flex-shrink: 0;
+  }
+  .res-buttons { gap: 12px; margin-top: 8px; }
+  .res-buttons .btn { min-width: 120px; font-size: clamp(16px, 3vh, 20px); padding: 10px 18px; }
 }
 @media (pointer: coarse) and (min-aspect-ratio: 1/1) {
   .rotate-notice { display: none; }

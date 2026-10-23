@@ -75,30 +75,44 @@ export class TouchControls {
     pad.innerHTML = '<div class="steer-track"><div class="steer-thumb"></div><span class="steer-hint">◀ 方向 ▶</span></div>';
     parent.appendChild(pad);
 
-    const track = pad.querySelector('.steer-track');
     const thumb = pad.querySelector('.steer-thumb');
     let active = false;
+    let originX = 0;        // 按下时的基准坐标
+    let originSteer = 0;    // 按下时的 steer 基准值（支持从非零位置继续调整）
 
-    const apply = (clientX) => {
-      const r = track.getBoundingClientRect();
-      const half = r.width / 2;
-      // 手指右滑 → v > 0 → steer > 0 → yawRate > 0 → heading -= → 车右转（符合直觉）
-      let v = half > 0 ? (clientX - (r.left + half)) / half : 0;
+    /** 检测游戏容器是否处于 CSS 旋转模式（竖屏强制横屏） */
+    const isRotatedMode = () => {
+      const root = document.getElementById('game-root');
+      if (!root) return false;
+      const s = getComputedStyle(root).transform;
+      return s && s !== 'none' && s.includes('matrix');
+    };
+
+    /** 提取用于转向计算的坐标轴值：正常模式用 X，旋转模式用 Y */
+    const steerAxis = (clientX, clientY) => isRotatedMode() ? clientY : clientX;
+
+    const apply = (clientX, clientY) => {
+      const x = steerAxis(clientX, clientY);
+      // 基于相对位移计算 steer（每 60px 位移 ≈ 1.0 steer）
+      const delta = x - originX;
+      let v = originSteer + delta / 60;
       v = Math.max(-1, Math.min(1, v));
-      if (Math.abs(v) < 0.08) v = 0;   // 死区，避免抖动
-      const travel = Math.max(0, half - 23);
-      thumb.style.transform = `translateX(${v * travel}px)`;
+      if (Math.abs(v) < 0.08) v = 0;
+      // 滑块跟随（最大 ±50px）
+      thumb.style.transform = `translateX(${v * 50}px)`;
       this.input.setSteer(v);
     };
 
-    const onStart = (clientX) => {
+    const onStart = (clientX, clientY) => {
       active = true;
       pad.classList.add('active');
-      apply(clientX);
+      originX = steerAxis(clientX, clientY);
+      originSteer = 0; // 每次按下都从 0 开始
+      apply(clientX, clientY);
     };
-    const onMove = (clientX) => {
+    const onMove = (clientX, clientY) => {
       if (!active) return;
-      apply(clientX);
+      apply(clientX, clientY);
     };
     const onEnd = () => {
       if (!active) return;
@@ -112,12 +126,12 @@ export class TouchControls {
     pad.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const t = e.touches && e.touches[0];
-      if (t) onStart(t.clientX);
+      if (t) onStart(t.clientX, t.clientY);
     }, { passive: false });
     pad.addEventListener('touchmove', (e) => {
       e.preventDefault();
       const t = e.touches && e.touches[0];
-      if (t) onMove(t.clientX);
+      if (t) onMove(t.clientX, t.clientY);
     }, { passive: false });
     pad.addEventListener('touchend', (e) => { e.preventDefault(); onEnd(); });
     pad.addEventListener('touchcancel', onEnd);
@@ -125,8 +139,8 @@ export class TouchControls {
     // 桌面调试（鼠标）
     pad.addEventListener('mousedown', (e) => {
       e.preventDefault();
-      onStart(e.clientX);
-      const mm = (ev) => onMove(ev.clientX);
+      onStart(e.clientX, e.clientY);
+      const mm = (ev) => onMove(ev.clientX, ev.clientY);
       const mu = () => { onEnd(); window.removeEventListener('mousemove', mm); window.removeEventListener('mouseup', mu); };
       window.addEventListener('mousemove', mm);
       window.addEventListener('mouseup', mu);
